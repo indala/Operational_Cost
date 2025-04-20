@@ -1,0 +1,508 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+  .dashboard {
+    max-width: 1000px;
+    margin: auto;
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  }
+
+  .dashboard h2 {
+    text-align: center;
+    margin-bottom: 1.5rem;
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    justify-content: center;
+    margin-bottom: 2rem;
+  }
+
+  .actions button {
+    padding: 10px 20px;
+    font-size: 1rem;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: 0.2s;
+  }
+
+  .actions button:hover {
+    background-color: #0056b3;
+  }
+
+  .logout button {
+    background-color: #dc3545;
+  }
+
+  .logout button:hover {
+    background-color: #c82333;
+  }
+
+  .section {
+    margin-top: 2rem;
+  }
+
+  .section form,
+  .section table {
+    width: 100%;
+  }
+
+  table {
+    border-collapse: collapse;
+    margin-top: 1rem;
+  }
+
+  th, td {
+    border: 1px solid #ccc;
+    padding: 10px;
+    text-align: center;
+  }
+
+  input[type="file"],
+  input[type="text"],
+  input[type="number"] {
+    padding: 8px;
+    margin: 5px 0;
+    width: 100%;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+  }
+
+  .submit-btn {
+    background-color: #28a745;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    cursor: pointer;
+    margin-top: 10px;
+  }
+
+  .submit-btn:hover {
+    background-color: #218838;
+  }
+</style>
+
+<div class="dashboard">
+  <h2>Admin Dashboard</h2>
+
+  <div class="actions">
+    <button onclick="showUploadSection()">Upload CSV</button>
+    <button onclick="showManualForm()">Add Expense Manually</button>
+    <button onclick="fetchExpenses()">View Expenses</button>
+    <button onclick="showPredictionForm()">Predict Cost</button>
+    <div class="logout">
+      <button onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="section" id="sectionContent"></div>
+</div>
+
+<script>
+  const token = localStorage.getItem("token");
+
+  // Redirect to login if token is missing
+  if (!token) {
+    window.location.href = "/";
+  }
+
+  const headers = {
+    "Authorization": `Bearer ${token}`
+  };
+
+  function logout() {
+    localStorage.removeItem("token");
+    window.location.href = "/";
+  }
+
+  function showUploadSection() {
+    document.getElementById("sectionContent").innerHTML = `
+      <h3>Upload Expense CSV</h3>
+      <form id="uploadForm">
+        <input type="file" name="file" accept=".csv" required>
+        <button type="submit" class="submit-btn">Upload</button>
+      </form>
+    `;
+
+    document.getElementById("uploadForm").onsubmit = async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const res = await fetch("/expenses/upload_csv", {
+        method: "POST",
+        headers,
+        body: formData
+      });
+
+      if (res.ok) {
+        alert("CSV uploaded successfully!");
+        fetchExpenses();
+      } else {
+        alert("Failed to upload CSV.");
+      }
+    };
+  }
+
+  async function showManualForm() {
+  document.getElementById("sectionContent").innerHTML = `
+    <h3>Add Expense Manually</h3>
+    <form id="manualForm">
+      <div><input type="number" name="year" placeholder="Year" required></div>
+      <div>
+        <select name="department" required>
+          <option value="" disabled selected>Select Department</option>
+          <option value="CSE">CSE</option>
+          <option value="IT">IT</option>
+          <option value="MECH">MECH</option>
+          <option value="CIVIL">CIVIL</option>
+          <option value="AIDS">AIDS</option>
+          <option value="EEE">EEE</option>
+          <option value="ECE">ECE</option>
+        </select>
+      </div>
+      <div><input type="number" step="0.01" name="faculty_expenses" placeholder="Faculty Expenses (₹)" required></div>
+      <div><input type="number" step="0.01" name="training_expenses" placeholder="Training Expenses (₹)" required></div>
+      <div><input type="number" step="0.01" name="placement_expenses" placeholder="Placement Expenses (₹)" required></div>
+      <div><input type="number" step="0.01" name="sports_expenses" placeholder="Sports Expenses (₹)" required></div>
+      <div><input type="number" step="0.01" name="miscellaneous_expenses" placeholder="Miscellaneous Expenses (₹)" required></div>
+      <div><input type="number" step="0.01" name="utilities" placeholder="Utilities (₹)" required></div>
+      <div><input type="number" step="0.01" name="rent" placeholder="Rent (₹)" required></div>
+      <div><strong>Total Cost: ₹<span id="totalCostDisplay">0.00</span></strong></div>
+      <div><button type="submit" class="submit-btn">Submit</button></div>
+    </form>
+  `;
+
+  const form = document.getElementById("manualForm");
+
+  // Function to update the total cost on the frontend
+  function updateTotalCost() {
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+
+    for (const key in data) {
+      if (!isNaN(data[key])) data[key] = Number(data[key]);
+    }
+
+    // Calculate the total cost dynamically, including faculty_expenses
+    const total_cost = data.faculty_expenses +
+                       data.training_expenses +
+                       data.placement_expenses +
+                       data.sports_expenses +
+                       data.miscellaneous_expenses +
+                       data.utilities +
+                       data.rent;
+
+    // Update the total cost display
+    document.getElementById("totalCostDisplay").textContent = total_cost.toFixed(2);
+  }
+
+  // Add event listeners to update the total cost as the user types
+  form.querySelectorAll('input[type="number"]').forEach(input => {
+    input.addEventListener('input', updateTotalCost);
+  });
+
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+
+    for (const key in data) {
+      if (!isNaN(data[key])) data[key] = Number(data[key]);
+    }
+
+    // Calculate total cost in case user submits without triggering an input event
+    updateTotalCost();
+    const total_cost = parseFloat(document.getElementById("totalCostDisplay").textContent);
+
+    // Add the calculated total_cost to the data object
+    data.total_cost = total_cost;
+
+    const submitBtn = form.querySelector(".submit-btn");
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Submitting...";
+
+    try {
+      const res = await fetch("/expenses/", {
+        method: "POST",
+        headers: {
+          ...headers,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(data)
+      });
+
+      const responseData = await res.json();
+
+      if (res.ok) {
+        alert("✅ Expense added successfully!");
+        fetchExpenses();
+      } else {
+        const message = responseData?.detail || "❌ Failed to add expense.";
+        alert(message);
+      }
+    } catch (err) {
+      alert("⚠️ An error occurred while submitting the form.");
+      console.error(err);
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Submit";
+    }
+  };
+}
+
+
+  let currentPage = 1;
+let currentSearch = "";
+let currentSortBy = "year";
+let currentOrder = "asc";
+const limit = 10;
+async function fetchExpenses(page = 1, search = "", sortBy = "year", order = "asc") {
+  currentPage = page;
+  currentSearch = search;
+  currentSortBy = sortBy;
+  currentOrder = order;
+
+  const skip = (page - 1) * limit;
+
+  document.getElementById("sectionContent").innerHTML = "<p>Loading expenses...</p>";
+
+  const res = await fetch(`/expenses/?skip=${skip}&limit=${limit}&search=${search}&sort_by=${sortBy}&order=${order}`, {
+    headers
+  });
+
+  if (!res.ok) {
+    document.getElementById("sectionContent").innerHTML = "<p>Failed to load expenses.</p>";
+    return;
+  }
+
+  const data = await res.json();
+  const expenses = data.expenses;
+  const totalCount = data.total_count;
+  const totalPages = Math.ceil(totalCount / limit);
+
+  let html = `
+    <h3>All Expenses</h3>
+
+    <div style="display: flex; gap: 10px; margin-bottom: 1rem;">
+      <select id="sortBy">
+        <option value="year">Sort by Year</option>
+        <option value="department">Sort by Department</option>
+        <option value="total_cost">Sort by Total Cost</option>
+      </select>
+      <select id="sortOrder">
+        <option value="asc">Ascending</option>
+        <option value="desc">Descending</option>
+      </select>
+      <button onclick="applyFilterSort()" class="submit-btn">Apply Sort</button>
+    </div>
+  `;
+
+  if (!expenses.length) {
+    html += `<p>No expenses found.</p>`;
+    document.getElementById("sectionContent").innerHTML = html + getSearchBarHTML();
+    return;
+  }
+
+  html += `
+    <table>
+      <tr>
+        <th>Year</th>
+        <th>Department</th>
+        <th>Faculty</th>
+        <th>Training</th>
+        <th>Placement</th>
+        <th>Sports</th>
+        <th>Misc</th>
+        <th>Utilities</th>
+        <th>Rent</th>
+        <th>Total</th>
+      </tr>
+  `;
+
+  for (const exp of expenses) {
+    html += `
+      <tr>
+        <td>${exp.year}</td>
+        <td>${exp.department}</td>
+        <td>${exp.faculty_expenses}</td>
+        <td>${exp.training_expenses}</td>
+        <td>${exp.placement_expenses}</td>
+        <td>${exp.sports_expenses}</td>
+        <td>${exp.miscellaneous_expenses}</td>
+        <td>${exp.utilities}</td>
+        <td>${exp.rent}</td>
+        <td><strong>${exp.total_cost}</strong></td>
+      </tr>
+    `;
+  }
+
+  html += `</table>`;
+
+  html += `
+    <div style="margin-top: 1rem; display: flex; justify-content: center; gap: 10px;">
+      <button onclick="fetchExpenses(${currentPage - 1}, currentSearch, currentSortBy, currentOrder)" ${currentPage === 1 ? "disabled" : ""} class="submit-btn">Prev</button>
+      <button onclick="fetchExpenses(${currentPage + 1}, currentSearch, currentSortBy, currentOrder)" ${currentPage === totalPages ? "disabled" : ""} class="submit-btn">Next</button>
+    </div>
+  `;
+
+  // Add search bar at the end
+  html += getSearchBarHTML();
+
+  document.getElementById("sectionContent").innerHTML = html;
+
+  // Set selected sort options
+  document.getElementById("sortBy").value = currentSortBy;
+  document.getElementById("sortOrder").value = currentOrder;
+
+  // Set current search value
+  document.getElementById("searchInput").value = currentSearch;
+  document.getElementById("searchInput").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      performSearch();
+    }
+  });
+}
+
+function applyFilterSort() {
+  const sortBy = document.getElementById("sortBy").value;
+  const order = document.getElementById("sortOrder").value;
+  fetchExpenses(1, currentSearch, sortBy, order);
+}
+
+function performSearch() {
+  const search = document.getElementById("searchInput").value;
+  fetchExpenses(1, search, currentSortBy, currentOrder);
+}
+
+function getSearchBarHTML() {
+  return `
+    <div style="margin-top: 1.5rem; display: flex; gap: 10px;">
+      <input type="text" id="searchInput" placeholder="Search by department or year" style="flex: 1; padding: 8px;">
+      <button onclick="performSearch()" class="submit-btn">Search</button>
+    </div>
+  `;
+}
+
+
+
+function showPredictionForm() {
+  document.getElementById("sectionContent").innerHTML = `
+    <h3>Predict Operational Cost</h3>
+    <form id="predictForm">
+      <input type="number" name="year" placeholder="Year" required>
+      <select name="department" required>
+        <option value="" disabled selected>Select Department</option>
+        <option value="CSE">CSE</option>
+        <option value="IT">IT</option>
+        <option value="MECH">MECH</option>
+        <option value="CIVIL">CIVIL</option>
+        <option value="AIDS">AIDS</option>
+        <option value="EEE">EEE</option>
+        <option value="ECE">ECE</option>
+      </select>
+      <input type="number" name="faculty_count" placeholder="Faculty Count" required>
+      <input type="number" name="student_count" placeholder="Student Count" required>
+      <input type="number" name="lab_count" placeholder="Lab Count" required>
+      <input type="number" name="building_area" placeholder="Building Area (sq ft)" required>
+      <input type="number" name="tuition_income" placeholder="Tuition Income (₹)" required>
+      <button type="submit" class="submit-btn">Predict</button>
+    </form>
+
+    <div id="predictionResult" style="margin-top: 1rem; font-weight: bold;"></div>
+    <button id="savePredictionBtn" class="submit-btn" style="display: none; margin-top: 10px;">Save Prediction</button>
+  `;
+
+  let predictionData = null;
+
+  document.getElementById("predictForm").onsubmit = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
+
+    // Convert data to appropriate types
+    for (const key in data) {
+      if (key !== "department") {
+        data[key] = Number(data[key]); // Ensure numeric values are converted
+      }
+    }
+
+    // Send prediction request to the backend
+    const res = await fetch("/predict/", {
+      method: "POST",
+      headers: {
+        ...headers,  // Assuming 'headers' are predefined (e.g., for authentication)
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(data)
+    });
+
+    const result = await res.json();
+
+    // Display prediction result
+    document.getElementById("predictionResult").innerText = `Predicted Operational Cost: ₹${result.predicted_total_cost}`;
+
+    // Save the prediction data for later
+    predictionData = {
+      ...data,
+      total_cost: result.predicted_total_cost
+    };
+
+    // Show the save button after prediction
+    document.getElementById("savePredictionBtn").style.display = "block";
+  };
+
+  // Save the predicted expense to DB
+  document.getElementById("savePredictionBtn").onclick = async () => {
+    if (!predictionData) return; 
+    console.log(predictionData); // Ensure predictionData exists
+
+    // Send request to save the prediction data
+    const saveRes = await fetch("/expenses/save_prediction", {
+      method: "POST",
+      headers: {
+        ...headers,  // Assuming 'headers' are predefined (e.g., for authentication)
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(predictionData)
+    });
+
+    if (saveRes.ok) {
+      alert("Prediction saved successfully!");
+      document.getElementById("savePredictionBtn").style.display = "none";  // Hide save button after saving
+    } else {
+      alert("Failed to save prediction.");
+    }
+  };
+}
+
+let idleTimeout;
+
+
+function resetIdleTimer() {
+  clearTimeout(idleTimeout);
+  idleTimeout = setTimeout(() => {
+    alert("Session expired due to inactivity.");
+    logout();
+  }, 5 * 60 * 1000); // 5 minutes
+} 
+
+// Reset timer on user interaction
+["mousemove", "keydown", "click", "scroll", "touchstart"].forEach(evt =>
+  window.addEventListener(evt, resetIdleTimer)
+);
+
+// Initialize the idle timer on page load
+resetIdleTimer();
+
+</script>
+{% endblock %}

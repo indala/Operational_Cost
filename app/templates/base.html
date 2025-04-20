@@ -1,0 +1,128 @@
+<!-- templates/base.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>{% block title %}Operational Cost Predictor{% endblock %}</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f7f9;
+    }
+
+    nav.navbar {
+      background-color: #2c3e50;
+      color: white;
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    nav .logo {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: white;
+      text-decoration: none;
+    }
+
+    ul.nav-links {
+      list-style: none;
+      display: flex;
+      gap: 1.5rem;
+    }
+
+    ul.nav-links li a {
+      color: white;
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.3s ease;
+    }
+
+    ul.nav-links li a:hover {
+      color: #18bc9c;
+    }
+
+    main {
+      padding: 2rem;
+      min-height: 80vh;
+    }
+
+    footer.footer {
+      background-color: #2c3e50;
+      color: white;
+      text-align: center;
+      padding: 1rem;
+      position: relative;
+      bottom: 0;
+      width: 100%;
+    }
+
+    ::-webkit-scrollbar {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- ---------- Navbar ---------- -->
+  <nav class="navbar">
+    <a href="/" class="logo">
+      {% if role == 'admin' %}
+        Admin Dashboard
+      {% elif role =='faculty' %}
+        Faculty Dashboard
+      {% else %}
+        CostPredictor
+      {% endif %}
+    </a>
+    <ul class="nav-links">
+      <li><a href="/">Home</a></li>
+      {% if role %}
+        <li><a href="#logout" class="logout-trigger">Logout</a></li>
+      {% else %}
+        <li><a href="#login" class="login-trigger">Login</a></li>
+        {% if role != 'admin' %}
+          <li><a href="#contact">Contact Us</a></li>
+        {% endif %}
+      {% endif %}
+    </ul>
+  </nav>
+
+  <!-- ----------- Page Content ----------- -->
+  <main>
+    {% block content %}
+    {% endblock %}
+  </main>
+
+  <!-- ----------- Footer ----------- -->
+  <footer class="footer">
+    <p>© 2025 Operational Cost Inc. All rights reserved.</p>
+  </footer>
+
+  <!-- Modal JS Trigger -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      document.querySelectorAll(".login-trigger").forEach(button => {
+        button.addEventListener("click", (e) => {
+          e.preventDefault();
+          if (typeof openModal === 'function') {
+            openModal();
+          }
+
+        });
+      });
+      document.querySelectorAll(".logout-trigger").forEach(button => {
+      button.addEventListener("click", (e) => {
+        e.preventDefault();
+        localStorage.removeItem("token"); // Remove the token from localStorage
+        window.location.href = "/"; // Redirect to home page or login page
+      });
+    });
+
+
+    });
+  </script>
+</body>
+</html>
